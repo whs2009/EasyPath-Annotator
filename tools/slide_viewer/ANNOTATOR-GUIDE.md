@@ -1,5 +1,7 @@
 # EasyPath Slide Annotator
 
+A crossed freehand outline is allowed. **Shift+S** repairs the crossings and saves the enclosed areas as separate, selectable polygons, merging positive-area overlaps only within the active frame, class and layer. **Shift+D** repairs the same outline and uses all its areas to cut that layer. Holes are preserved. A line with no enclosed area leaves the draft available to continue. Undo reverses the entire save or clip in one step.
+
 Open one or more local whole-slide files. Page Up/Down switches slides; hold Shift to switch frames. The slide preview uses the scanner macro/label when available. Zoom, rotation, minimap, scale, measurements, fullscreen and PNG/JPEG export work as in Slide Viewer. General builds use OpenSlide for supported scanner slides; iSyntax needs the hospital-research edition and a supported Philips runtime.
 
 | Tool | Editing |

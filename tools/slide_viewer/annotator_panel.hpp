@@ -462,5 +462,14 @@ API int annotator_check(Open o,Read r,Save s,Macro m,EditAnno a,const char* scan
     key('g',true);
     if(v.object_action(v.tr().screen({40,40}),true)||!v.object_action(v.tr().screen({110,45}),true))return 24;
     if(v.rows.size()!=1||v.rows[0].parent!=-1||!v.rows[0].numeric||!key('z',true)||v.rows.size()!=5)return 25;
+    if(!key('8',false,true)||v.address[1][3]!=8)return 26;
+    const auto before_cross=v.rows.size();
+    v.pointer=v.tr().screen({10,10});v.pointer_valid=true;
+    if(!key('z',false,true)||!v.stroke)return 27;
+    move({90,90});move({10,90});move({90,10});
+    const auto crossed=v.vertices;
+    if(!key('s',false,true)||v.stroke||!v.vertices.empty()||v.rows.size()!=before_cross+2)return 28;
+    v.vertices=crossed;
+    if(!key('d',false,true)||!v.vertices.empty()||v.rows.size()!=before_cross)return 29;
     v.win.hide();return 0;
 }

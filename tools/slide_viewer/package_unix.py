@@ -36,7 +36,7 @@ def package(binary, dest):
             shutil.copy2(binary,contents/"MacOS"/name)
             (contents/"Info.plist").write_bytes(plistlib.dumps(dict(CFBundleExecutable=name,
                 CFBundleIdentifier="org.easypath.slide"+tool.lower(), CFBundlePackageType="APPL",
-                CFBundleName=title, CFBundleVersion="1", CFBundleShortVersionString={"Viewer":"0.2.4","Annotator":"0.2.3"}[tool])))
+                CFBundleName=title, CFBundleVersion="1", CFBundleShortVersionString={"Viewer":"0.2.4","Annotator":"0.2.4"}[tool])))
             shutil.copy2(guide,app)
             subprocess.run(["hdiutil","create","-volname",title,"-srcfolder",str(app),
                 "-format","UDZO",str(tmp/output.name)],check=True)

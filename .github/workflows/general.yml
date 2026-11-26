@@ -36,6 +36,7 @@ jobs:
           python -m pip install --only-binary=:all: -r tools/slide_viewer/requirements-build.txt
       - if: runner.os == 'Linux'
         run: xvfb-run -a python packaging/build.py
+      - run: python -I -B tools/slide_viewer/tests/test_crossed_polygon.py
       - if: runner.os != 'Linux'
         run: python packaging/build.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

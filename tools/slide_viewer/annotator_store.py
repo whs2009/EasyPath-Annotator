@@ -11,7 +11,9 @@ import stat
 import tempfile
 from uuid import uuid4
 
+from shapely import STRtree, make_valid
 from shapely.geometry import Polygon, mapping, shape
+from shapely.ops import unary_union
 
 EXT = {"points": "points.json", "polygons": "polygons.geojson", "tags": "tags.json", "words": "words.json"}
 CODE = dict(points="P", polygons="G", tags="T", words="W")
@@ -94,6 +96,90 @@ def props(kind, row):
 
 def uid(kind, row):
     return props(kind, row)[kind[:-1]+"_id"]
+
+
+def polygon_parts(geom):
+    """Ignore collapsed lines and points, never the second lobe of a crossing."""
+    if geom.is_empty:
+        return []
+    if geom.geom_type == "Polygon":
+        return [geom] if geom.area > 0 else []
+    if geom.geom_type in ("MultiPolygon", "GeometryCollection"):
+        return [p for child in geom.geoms for p in polygon_parts(child)]
+    return []
+
+
+def split_features(template, parts):
+    # Keep the original ID on the largest remaining part; clone labels, not IDs.
+    for i, part in enumerate(sorted(parts, key=lambda p: (-p.area, p.bounds))):
+        row = deepcopy(template)
+        if i:
+            row["properties"]["polygon_id"] = uuid4().hex
+        row["geometry"] = mapping(part)
+        yield row
+
+
+def polygon_edit(rows, draft, props_new, clip):
+    parts = polygon_parts(draft if draft.is_valid else make_valid(draft))
+    check(parts, "The outline encloses no area. Resume tracing or clear the draft.")
+    key, frame = props_new["annotation_layer_key"], props_new["frame_index"]
+    eligible = [(i, row) for i, row in enumerate(rows)
+                if row["properties"].get("frame_index", 0) == frame
+                and row["properties"].get("annotation_layer_key") == key]
+    changes = {}
+    if clip:
+        mask = unary_union(parts)
+        for i, row in eligible:
+            old = shape(row["geometry"])
+            if not old.intersects(mask):
+                continue
+            result = old.difference(mask)
+            if not result.equals(old):
+                changes[i] = list(split_features(row, polygon_parts(result)))
+        check(changes, "No same-layer polygon overlaps the draft.")
+        rows[:] = [part for i, row in enumerate(rows) for part in changes.get(i, [row])]
+        return
+
+    # Link draft faces only through existing polygons with positive-area overlap.
+    # Faces meeting only at a crossing remain independently selectable.
+    tree = STRtree(parts)
+    parent = list(range(len(parts)))
+    def root(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+    hits = []
+    for i, row in eligible:
+        old = shape(row["geometry"])
+        match = [int(j) for j in tree.query(old, predicate="intersects")
+                 if old.intersection(parts[j]).area > 0]
+        if match:
+            first = root(match[0])
+            for j in match[1:]:
+                parent[root(j)] = first
+            hits.append((match[0], i, row, old))
+    groups = {}
+    for j, part in enumerate(parts):
+        groups.setdefault(root(j), ([], []))[0].append(part)
+    for j, i, row, old in hits:
+        groups[root(j)][1].append((i, row, old))
+    added = []
+    for faces, matches in groups.values():
+        if not matches:
+            p = dict(props_new, polygon_id=uuid4().hex)
+            added.append(dict(type="Feature", properties=p, geometry=mapping(faces[0])))
+            continue
+        first, template, _ = matches[0]
+        def attributes(row):
+            return {k:v for k,v in row["properties"].items() if k != "polygon_id"}
+        check(all(attributes(row) == attributes(template) for _,row,_ in matches[1:]),
+              "Overlapping polygons carry different labels. Resolve their labels before merging.")
+        merged = unary_union(faces + [g for _,_,g in matches])
+        for i, _, _ in matches:
+            changes[i] = []
+        changes[first] = list(split_features(template, polygon_parts(merged)))
+    rows[:] = [part for i, row in enumerate(rows) for part in changes.get(i, [row])] + added
 
 
 class Store:
@@ -243,35 +329,8 @@ class Store:
             elif kind=="polygons":
                 check(3<=len(vertices)<=100000,"Draw at least three vertices.")
                 g=Polygon([self.xy(pt) for pt in vertices])
-                check(g.is_valid and g.area>0,"The polygon crosses itself or has no area.")
-                if action=="clip":
-                    altered=False
-                    for i in range(len(rows)-1,-1,-1):
-                        prop=props(kind,rows[i])
-                        if prop.get("frame_index",0)!=frame or prop.get("annotation_layer_key")!=key:continue
-                        old=shape(rows[i]["geometry"]);out=old.difference(g)
-                        if out.equals(old): continue
-                        altered=True
-                        if out.is_empty: rows.pop(i)
-                        else: rows[i]["geometry"]=mapping(out)
-                    check(altered,"No same-layer polygon overlaps the draft.")
-                else:
-                    merged=[]
-                    for row in rows:
-                        pr=props(kind,row)
-                        if pr.get("frame_index",0)==frame and pr.get("annotation_layer_key")==key and shape(row["geometry"]).intersection(g).area>0:
-                            merged.append(row)
-                    if not merged:rows.append(dict(type="Feature",properties=p,geometry=mapping(g)))
-                    else:
-                        # Do not silently discard conflicting object labels or provenance.
-                        from shapely.ops import unary_union
-                        base=props(kind,merged[0])
-                        for row in merged[1:]:
-                            other=props(kind,row)
-                            check({k:v for k,v in base.items() if k!="polygon_id"}=={k:v for k,v in other.items() if k!="polygon_id"},
-                                  "Overlapping polygons carry different labels. Resolve their labels before merging.")
-                        merged[0]["geometry"]=mapping(unary_union([g]+[shape(row["geometry"]) for row in merged]))
-                        for row in merged[1:]:rows.remove(row)
+                polygon_edit(rows,g,p,action=="clip")
+                check(len(rows)<=100000,"Too many polygons in this annotation file.")
             else:
                 check(action=="add","Invalid action.")
                 if kind=="words":p.update(format="number" if number else "word",value=numeric if number else value);check(value.strip(),"Enter a word or phrase.")
