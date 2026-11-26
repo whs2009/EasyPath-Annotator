@@ -1,0 +1,18 @@
+# EasyPath Slide Annotator
+
+Open one or more local whole-slide files. Page Up/Down switches slides; hold Shift to switch frames. The slide preview uses the scanner macro/label when available. Zoom, rotation, minimap, scale, measurements, fullscreen and PNG/JPEG export work as in Slide Viewer. General builds use OpenSlide for supported scanner slides; iSyntax needs the hospital-research edition and a supported Philips runtime.
+
+| Tool | Editing |
+| --- | --- |
+| Point (Ctrl+P) | Click to add a point. In Point annotation > Display, set the radius and check **Change to circle** for a hollow marker that leaves the tissue visible. Uncheck it for a solid point. The setting applies to existing points and snapshots, not to the stored coordinates. Select layers with 1-9 or 0 (layer 10). Q pans, W adds, E removes. Right-click removes a visible point in point free draw. |
+| Polygon (Ctrl+G) | Hover over tissue and press Shift+Z. Move the mouse without holding a button to trace. Another key pauses; pan and press Shift+Z to resume. Shift+A steps back ten samples, Shift+R clears the draft, Shift+S saves it and merges overlapping polygons in the same class and layer. Shift+D cuts the drawn area from matching polygons in this frame. Shift+1-0 selects a layer. Right-click a visible polygon to remove it; holes are not selectable interiors. |
+| Tag (Ctrl+Alt+T) / Word (Ctrl+O) | Set the class, layer and meaning or value in the tool panel. Save frame label labels this frame. In free draw click a point or polygon to apply an object tag; double-click to edit a word/number in Word mode. Right-click and confirm to remove that object's tags or words without deleting the geometry. Ctrl+1-0 selects a tag layer. |
+| Display annotation layers | Show or hide layers independently for points, polygons, tags and words. Object labels follow both their own layer and their parent geometry's visibility. Select a frame label or geometry in the list and use Delete selected to remove it. |
+
+Free draw modes are exclusive. Close beside the color swatches, Escape, or unchecking Free draw in the settings panel returns to pan. An unfinished polygon prompts before being discarded. **Ctrl+S** or the **Save all annotations** disk button confirms that completed annotations for the current slide, across all frames, are saved beside it. This also works in pan mode. An unfinished polygon stays a draft: use **Shift+S** to finish it. Ctrl+Z/Y undoes/redoes saved edits in this session. Ctrl+Q/W/E sets polygon fill opacity to 0, 0.2 or 0.6. Visible annotations can be included in a snapshot; unfinished polygons are never exported.
+
+The ten layer colors start in EasyPath order: blue, green, yellow, red, black, white, purple, cyan, magenta, orange. Click a numbered swatch to select the active layer. Color... swaps its color with another layer of the same annotation type. The same choice is available in each tool's Display tab. Colors are viewer preferences saved on this computer, not changes to annotation IDs.
+
+Each completed edit is saved next to the slide. For example, a slide named 'sample.ndpi' can have 'sample.ndpi.points.json', 'sample.ndpi.polygons.geojson', 'sample.ndpi.tags.json' and 'sample.ndpi.words.json'. Only edited types create files. Keep these files with their slide when moving it. A small lock file coordinates concurrent editors; do not upload it.
+
+To bring annotations into EasyPath, open the corresponding slide, choose **Import annotations > EasyPath**, select the JSON/GeoJSON companions together, inspect the counts, and confirm. Files contain annotation text and may contain sensitive information. The desktop app does not upload them or modify the slide.

@@ -1,0 +1,11 @@
+cmake_minimum_required(VERSION 3.22)
+project(easypath_slide_viewer LANGUAGES CXX)
+find_package(FLTK 1.4 CONFIG REQUIRED)
+add_library(annotator_ui SHARED desktop.cpp)
+target_compile_features(annotator_ui PRIVATE cxx_std_17)
+target_link_libraries(annotator_ui PRIVATE fltk::fltk)
+if(WIN32)
+  set_target_properties(annotator_ui PROPERTIES PREFIX "")
+endif()
+
+target_compile_definitions(annotator_ui PRIVATE EP_BUILD_ANNOTATOR)
